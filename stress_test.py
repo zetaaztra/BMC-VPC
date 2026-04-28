@@ -6,6 +6,14 @@ from unittest.mock import MagicMock
 mock_st = MagicMock()
 sys.modules["streamlit"] = mock_st
 
+# Better column mock
+def mock_columns(n):
+    return [MagicMock() for _ in range(n)]
+mock_st.columns.side_effect = mock_columns
+mock_st.sidebar = MagicMock()
+mock_st.sidebar.__enter__ = MagicMock(return_value=MagicMock())
+mock_st.sidebar.__exit__ = MagicMock(return_value=None)
+
 # Mock session state
 class MockSessionState(dict):
     def __getattr__(self, key): return self.get(key)
@@ -13,6 +21,7 @@ class MockSessionState(dict):
 
 mock_ss = MockSessionState()
 mock_st.session_state = mock_ss
+
 
 # Import the app (we need to be careful with global st calls)
 # To avoid execution of the whole script on import, I'll read the file and extract functions 

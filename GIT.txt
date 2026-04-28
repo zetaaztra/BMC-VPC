@@ -1,0 +1,6 @@
+git init
+git add .
+git commit -m "HaShem help me in this first commit"
+git branch -M main
+git remote add origin https://github.com/zetaaztra/BMC-VPC.git
+git push -u origin main
