@@ -563,8 +563,33 @@ textarea::placeholder,input::placeholder{{color:var(--text3)!important;font-size
 .timeline-item.done::before{{
   background:var(--green);
 }}
+/* --- RESPONSIVE MOBILE TWEAKS --- */
+@media (max-width: 768px) {
+  .hero {
+    flex-direction: column !important;
+    text-align: center !important;
+    padding: 20px !important;
+    gap: 20px !important;
+  }
+  .hero > div {
+    text-align: center !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+  }
+  .hero div[style*="justify-content:flex-end"] {
+    justify-content: center !important;
+  }
+  .mbox {
+    padding: 15px !important;
+  }
+  .mval {
+    font-size: 1.8rem !important;
+  }
+}
 </style>
 """, unsafe_allow_html=True)
+
 
 # ── FIELD DEFS ────────────────────────────────────────────────
 BMC = ["key_partners","key_activities","value_propositions",
