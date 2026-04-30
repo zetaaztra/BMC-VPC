@@ -4,6 +4,7 @@ import csv
 import io
 import os
 import math
+import html as html_mod
 from datetime import datetime
 
 # ── OPTIONAL: Plotly for premium charts ──────────────────────
@@ -68,44 +69,8 @@ LIGHT = {
     "mode_name": "☀️ LIGHT",
 }
 
-def init():
-    ALL_FIELDS = [
-        "key_partners", "key_activities", "value_propositions",
-        "customer_relationships", "customer_segments", "key_resources",
-        "channels", "cost_structure", "revenue_streams",
-        "customer_jobs", "customer_pains", "customer_gains",
-        "products_services", "pain_relievers", "gain_creators",
-        "swot_s", "swot_w", "swot_o", "swot_t",
-        "rev_price", "rev_volume", "rev_fixed_cost", "rev_var_cost"
-    ]
-    if "canvas" not in st.session_state:
-        st.session_state.canvas = {f: "" for f in ALL_FIELDS}
-    if "history" not in st.session_state:
-        st.session_state.history = []
-    if "file_name" not in st.session_state:
-        st.session_state.file_name = "my_startup_canvas"
-    if "founder_name" not in st.session_state:
-        st.session_state.founder_name = ""
-    if "company_name" not in st.session_state:
-        st.session_state.company_name = ""
-    if "saved_files" not in st.session_state:
-        st.session_state.saved_files = {}
-    if "active_file" not in st.session_state:
-        st.session_state.active_file = None
-    if "show_tips" not in st.session_state:
-        st.session_state.show_tips = True
-    if "theme" not in st.session_state:
-        st.session_state.theme = "dark"
-    if "last_saved" not in st.session_state:
-        st.session_state.last_saved = None
-    if "hypotheses" not in st.session_state:
-        st.session_state.hypotheses = []
-    # Patch existing session state if fields are missing
-    for f in ALL_FIELDS:
-        if f not in st.session_state.canvas:
-            st.session_state.canvas[f] = ""
-
-init()
+if "theme" not in st.session_state:
+    st.session_state.theme = "dark"
 T = DARK if st.session_state.theme == "dark" else LIGHT
 
 # ── CSS INJECTION ────────────────────────────────────────────
@@ -172,9 +137,7 @@ html,body,[data-testid="stAppViewContainer"],[data-testid="stMain"]{{
 
 /* ── GLASSMORPHISM SIDEBAR ── */
 [data-testid="stSidebar"]{{
-  background:linear-gradient(180deg,{T['glass']},{T['glass2']})!important;
-  backdrop-filter:blur(20px) saturate(1.4)!important;
-  -webkit-backdrop-filter:blur(20px) saturate(1.4)!important;
+  background:var(--bg1)!important;
   border-right:1px solid var(--border)!important;
   z-index:10;
 }}
@@ -259,14 +222,15 @@ textarea::placeholder,input::placeholder{{color:var(--text3)!important;font-size
   box-shadow:var(--neon_teal)!important;transform:translateY(-2px)!important;
 }}
 .stDownloadButton>button{{
-  background:linear-gradient(135deg,var(--a1),color-mix(in srgb,var(--a1) 60%,black))!important;
-  color:#000!important;border:none!important;font-weight:800!important;font-size:0.9rem!important;
+  background:var(--a1)!important;
+  color:white!important;border:none!important;font-weight:800!important;font-size:0.9rem!important;
   border-radius:12px!important;transition:all .25s ease!important;
-  box-shadow:var(--neon_teal)!important;
+  box-shadow:var(--shadow_sm)!important;
 }}
 .stDownloadButton>button:hover{{
   transform:translateY(-2px)!important;
-  box-shadow:0 8px 24px rgba(0,212,170,0.35)!important;
+  box-shadow:var(--neon_teal)!important;
+  background:var(--green)!important;
 }}
 
 /* ── ALERTS GLASS ── */
@@ -277,17 +241,21 @@ textarea::placeholder,input::placeholder{{color:var(--text3)!important;font-size
   border-radius:12px!important;
 }}
 
-/* ── FILE UPLOADER GLASS ── */
-[data-testid="stFileUploadDropzone"]{{
-  background:var(--glass2)!important;
-  backdrop-filter:blur(8px)!important;
-  border:2px dashed var(--border2)!important;
-  border-radius:12px!important;color:var(--text2)!important;
-  transition:all 0.3s!important;
+/* ── SIDEBAR WIDGET THEME FIX ── */
+[data-testid="stSidebar"] [data-testid="stFileUploadDropzone"],
+[data-testid="stSidebar"] [data-baseweb="select"] > div,
+[data-testid="stSidebar"] div[role="radiogroup"],
+[data-testid="stSidebar"] [data-testid="stWidgetLabel"] p {{
+  background-color: {T['bg1']} !important;
+  color: {T['text']} !important;
+  border-color: {T['border']} !important;
 }}
-[data-testid="stFileUploadDropzone"]:hover{{
-  border-color:var(--a1)!important;
-  background:color-mix(in srgb,var(--a1) 5%,var(--glass2))!important;
+[data-testid="stSidebar"] [data-testid="stFileUploadDropzone"] * {{
+  color: {T['text2']} !important;
+}}
+[data-testid="stSidebar"] .stDownloadButton button {{
+  background: {T['a1']} !important;
+  color: white !important;
 }}
 
 /* ── PROGRESS BAR ANIMATED ── */
@@ -599,7 +567,9 @@ BMC = ["key_partners","key_activities","value_propositions",
 VPC = ["customer_jobs","customer_pains","customer_gains",
        "products_services","pain_relievers","gain_creators"]
 SWOT = ["swot_s","swot_w","swot_o","swot_t"]
-ALL = BMC + VPC + SWOT
+MAIN = BMC + VPC + SWOT
+OTHER = ["rev_price", "rev_volume", "rev_fixed_cost", "rev_var_cost", "canvas_notes"]
+ALL = MAIN + OTHER
 
 LABELS = {
     "key_partners":"🤝 Key Partners","key_activities":"⚙️ Key Activities",
@@ -655,9 +625,67 @@ HINTS = {
 }
 
 # ── HELPERS ───────────────────────────────────────────────────
+def update_widgets():
+    for k in MAIN + ["canvas_notes"]:
+        st.session_state[f"ta_{k}"] = st.session_state.canvas.get(k, "")
+    for k in ["rev_price", "rev_volume", "rev_fixed_cost", "rev_var_cost"]:
+        try:
+            val = st.session_state.canvas.get(k, "0")
+            st.session_state[f"ta_{k}"] = int(float(val)) if val and val != "" else 0
+        except (ValueError, TypeError):
+            st.session_state[f"ta_{k}"] = 0
+
+def init():
+    ALL_FIELDS = [
+        "key_partners", "key_activities", "value_propositions",
+        "customer_relationships", "customer_segments", "key_resources",
+        "channels", "cost_structure", "revenue_streams",
+        "customer_jobs", "customer_pains", "customer_gains",
+        "products_services", "pain_relievers", "gain_creators",
+        "swot_s", "swot_w", "swot_o", "swot_t",
+        "rev_price", "rev_volume", "rev_fixed_cost", "rev_var_cost",
+        "canvas_notes"
+    ]
+    if "canvas" not in st.session_state:
+        st.session_state.canvas = {f: "" for f in ALL_FIELDS}
+        # Set sensible financial defaults
+        st.session_state.canvas.update({
+            "rev_price": "1000",
+            "rev_volume": "100",
+            "rev_fixed_cost": "50000",
+            "rev_var_cost": "200"
+        })
+        update_widgets()
+    if "history" not in st.session_state:
+        st.session_state.history = []
+    if "file_name" not in st.session_state:
+        st.session_state.file_name = "my_startup_canvas"
+    if "founder_name" not in st.session_state:
+        st.session_state.founder_name = ""
+    if "company_name" not in st.session_state:
+        st.session_state.company_name = ""
+    if "saved_files" not in st.session_state:
+        st.session_state.saved_files = {}
+    if "active_file" not in st.session_state:
+        st.session_state.active_file = None
+    if "show_tips" not in st.session_state:
+        st.session_state.show_tips = True
+    if "theme" not in st.session_state:
+        st.session_state.theme = "dark"
+    if "last_saved" not in st.session_state:
+        st.session_state.last_saved = None
+    if "hypotheses" not in st.session_state:
+        st.session_state.hypotheses = []
+    # Patch existing session state if fields are missing
+    for f in ALL_FIELDS:
+        if f not in st.session_state.canvas:
+            st.session_state.canvas[f] = ""
+
+init()
+
 def snapshot():
     st.session_state.history.append(dict(st.session_state.canvas))
-    if len(st.session_state.history) > 30: st.session_state.history.pop(0)
+    if len(st.session_state.history) > 15: st.session_state.history.pop(0)
 
 def undo():
     if st.session_state.history:
@@ -674,6 +702,7 @@ def load_canvas(name):
     st.session_state.canvas = dict(st.session_state.saved_files[name])
     st.session_state.file_name = name
     st.session_state.active_file = name
+    update_widgets()
 
 def delete_canvas(name):
     st.session_state.saved_files.pop(name, None)
@@ -683,6 +712,7 @@ def delete_canvas(name):
 def clear_canvas():
     snapshot()
     st.session_state.canvas = {f: "" for f in ALL}
+    update_widgets()
 
 def to_json(name):
     return json.dumps({
@@ -703,8 +733,8 @@ def to_csv(name):
     for f in SWOT: w.writerow(["SWOT", PLAIN[f], st.session_state.canvas[f]])
     return buf.getvalue()
 
-# ── PDF EXPORT WITH FOUNDER NAME & CANVAS NAME ────────────────
-def to_pdf(name, size="A4", orientation="Landscape"):
+# ── PDF EXPORT WITH THEMES ─────────────────────────────────────
+def to_pdf(name, size="A4", orientation="Landscape", pdf_theme="Dark"):
     try:
         from reportlab.lib.pagesizes import A4, A5, A3, letter, landscape
         from reportlab.lib import colors
@@ -725,17 +755,39 @@ def to_pdf(name, size="A4", orientation="Landscape"):
         buf = io.BytesIO()
         c = C.Canvas(buf, pagesize=(pw, ph))
 
-        # Colors
-        WHITE  = colors.white
-        DARK   = colors.HexColor("#13131f")
-        TEAL   = colors.HexColor("#00d4aa")
-        ORANGE = colors.HexColor("#ff6b35")
-        INDIGO = colors.HexColor("#6c7fff")
-        AMBER  = colors.HexColor("#f7c948")
-        REDC   = colors.HexColor("#e05252")
-        GREENC = colors.HexColor("#3ecf8e")
-        LIGHTBG= colors.HexColor("#1a1a2e")
-        MID    = colors.HexColor("#2a2a45")
+        # Colors based on theme
+        if pdf_theme == "Light":
+            WHITE  = colors.white
+            DARK   = colors.white # Page background
+            TEAL   = colors.HexColor("#007a63")
+            ORANGE = colors.HexColor("#c84a00")
+            INDIGO = colors.HexColor("#3040c8")
+            AMBER  = colors.HexColor("#a87800")
+            REDC   = colors.HexColor("#b52828")
+            GREENC = colors.HexColor("#1a7040")
+            LIGHTBG= colors.HexColor("#f5f7ff") # Cell background
+            MID    = colors.HexColor("#d8dcee") # Shadow/Border
+            TEXT_MAIN = colors.HexColor("#12122a")
+            TEXT_SEC  = colors.HexColor("#3d3d6a")
+            HEADER_TEXT = colors.white
+            FOOTER_BG = colors.HexColor("#e8ecf8")
+            FOOTER_TEXT = colors.HexColor("#8888b0")
+        else:
+            WHITE  = colors.white
+            DARK   = colors.HexColor("#0c0c14")
+            TEAL   = colors.HexColor("#00d4aa")
+            ORANGE = colors.HexColor("#ff6b35")
+            INDIGO = colors.HexColor("#6c7fff")
+            AMBER  = colors.HexColor("#f7c948")
+            REDC   = colors.HexColor("#e05252")
+            GREENC = colors.HexColor("#3ecf8e")
+            LIGHTBG= colors.HexColor("#1a1a2e")
+            MID    = colors.HexColor("#2a2a45")
+            TEXT_MAIN = colors.HexColor("#f0f0fa")
+            TEXT_SEC  = colors.HexColor("#a0a0c8")
+            HEADER_TEXT = colors.white
+            FOOTER_BG = colors.HexColor("#0d1520")
+            FOOTER_TEXT = colors.HexColor("#55557a")
 
         SEC_COL = {
             "key_partners": AMBER, "key_activities": AMBER, "value_propositions": INDIGO,
@@ -749,7 +801,7 @@ def to_pdf(name, size="A4", orientation="Landscape"):
         def draw_cell(x, y, cw, ch, key, content):
             col = SEC_COL.get(key, TEAL)
             # Subtle Shadow
-            c.setFillColor(colors.HexColor("#2a2a45"))
+            c.setFillColor(MID)
             c.roundRect(x+0.8, y-0.8, cw, ch, 4, fill=1, stroke=0)
             
             # Cell Background
@@ -763,13 +815,13 @@ def to_pdf(name, size="A4", orientation="Landscape"):
             c.rect(x, y+ch-hh+3, cw, hh-3, fill=1, stroke=0) # Flatten bottom of header roundrect
             
             # Header Text (Increased to 9)
-            c.setFillColor(WHITE)
+            c.setFillColor(HEADER_TEXT)
             c.setFont("Helvetica-Bold", 9)
             # Center title slightly or keep it left-aligned
             c.drawString(x+4, y+ch-hh+2.5, PLAIN.get(key, "").upper())
             
             # Content Text (Increased to 9)
-            c.setFillColor(colors.HexColor("#f0f0fa"))
+            c.setFillColor(TEXT_MAIN)
             c.setFont("Helvetica", 9)
             lines = (content or "—").split("\n")
             ty = y+ch-hh-6
@@ -810,7 +862,7 @@ def to_pdf(name, size="A4", orientation="Landscape"):
 
         # Founder & Company
         c.setFont("Helvetica", 9)
-        c.setFillColor(colors.HexColor("#a0a0c8"))
+        c.setFillColor(TEXT_SEC)
         meta_text = f"by {founder}"
         if company:
             meta_text += f"  ·  {company}"
@@ -818,7 +870,7 @@ def to_pdf(name, size="A4", orientation="Landscape"):
 
         # Date
         c.setFont("Helvetica", 8)
-        c.setFillColor(colors.HexColor("#55557a"))
+        c.setFillColor(FOOTER_TEXT)
         c.drawRightString(pw-10*mm, ph-15*mm, f"{size} · {orientation} · {datetime.now().strftime('%d %b %Y')}")
 
         # Decorative accent line
@@ -876,8 +928,8 @@ def to_pdf(name, size="A4", orientation="Landscape"):
             draw_cell(x0+cw3*2, bot, cw3-2, bh-2, "revenue_streams", st.session_state.canvas["revenue_streams"])
 
         # Footer
-        c.setFillColor(colors.HexColor("#0d1520")); c.rect(0, 0, pw, 6*mm, fill=1, stroke=0)
-        c.setFillColor(colors.HexColor("#55557a")); c.setFont("Helvetica", 6)
+        c.setFillColor(FOOTER_BG); c.rect(0, 0, pw, 6*mm, fill=1, stroke=0)
+        c.setFillColor(FOOTER_TEXT); c.setFont("Helvetica", 6)
         c.drawCentredString(pw/2, 2.5*mm, f"Canvas Studio Pro  ·  Strategy Toolkit  ·  {display_name}")
         c.showPage()
 
@@ -887,12 +939,12 @@ def to_pdf(name, size="A4", orientation="Landscape"):
         c.setFillColor(WHITE); c.setFont("Helvetica-Bold", 16)
         c.drawString(10*mm, ph-11*mm, display_name)
         c.setFont("Helvetica", 9)
-        c.setFillColor(colors.HexColor("#a0a0c8"))
+        c.setFillColor(TEXT_SEC)
         meta_text2 = f"by {founder}"
         if company: meta_text2 += f"  ·  {company}"
         c.drawRightString(pw-10*mm, ph-11*mm, meta_text2)
         c.setFont("Helvetica", 8)
-        c.setFillColor(colors.HexColor("#55557a"))
+        c.setFillColor(FOOTER_TEXT)
         c.drawRightString(pw-10*mm, ph-15*mm, f"{size} · {orientation} · {datetime.now().strftime('%d %b %Y')}")
 
         c.setStrokeColor(ORANGE); c.setLineWidth(1)
@@ -912,7 +964,11 @@ def to_pdf(name, size="A4", orientation="Landscape"):
         for i, fk in enumerate(["customer_jobs","customer_gains","customer_pains"]):
             fy = v_top - (i+1)*(ch_v+4*mm)
             draw_cell(pad+uw/2+4*mm, fy, v_lw, ch_v, fk, st.session_state.canvas[fk])
-            
+
+        # Footer
+        c.setFillColor(FOOTER_BG); c.rect(0, 0, pw, 6*mm, fill=1, stroke=0)
+        c.setFillColor(FOOTER_TEXT); c.setFont("Helvetica", 6)
+        c.drawCentredString(pw/2, 2.5*mm, f"Canvas Studio Pro  ·  Strategy Toolkit  ·  {display_name}")
         c.showPage()
 
         # ===== PAGE 3: VPC VISUAL DIAGRAMS =====
@@ -920,7 +976,7 @@ def to_pdf(name, size="A4", orientation="Landscape"):
         c.setFillColor(ORANGE); c.rect(0, ph-18*mm, pw, 18*mm, fill=1, stroke=0)
         c.setFillColor(WHITE); c.setFont("Helvetica-Bold", 16)
         c.drawString(10*mm, ph-11*mm, display_name)
-        c.setFont("Helvetica", 8); c.setFillColor(colors.HexColor("#55557a"))
+        c.setFont("Helvetica", 8); c.setFillColor(FOOTER_TEXT)
         c.drawRightString(pw-10*mm, ph-15*mm, "Value Proposition Fit Analysis")
 
         c.setStrokeColor(ORANGE); c.setLineWidth(1)
@@ -943,7 +999,8 @@ def to_pdf(name, size="A4", orientation="Landscape"):
         # --- VALUE MAP (Square) ---
         sx = mx - rad*2 - 15*mm if orientation=="Landscape" else mx - rad
         sy = my - rad if orientation=="Landscape" else my + rad + 8*mm
-        c.setStrokeColor(ORANGE); c.setLineWidth(2); c.setFillColor(colors.HexColor("#1f1410"))
+        c.setStrokeColor(ORANGE); c.setLineWidth(2)
+        c.setFillColor(colors.HexColor("#1f1410") if pdf_theme=="Dark" else colors.HexColor("#fff5f0"))
         c.roundRect(sx, sy, rad*2, rad*2, 8, fill=1, stroke=1)
         # Standard VPC Divisions
         c.setLineWidth(1); c.setStrokeColor(colors.HexColor("#4a2a1a"))
@@ -956,18 +1013,19 @@ def to_pdf(name, size="A4", orientation="Landscape"):
         # Words inside Square
         c.setFont("Helvetica-Bold", 7); c.setFillColor(ORANGE)
         c.drawCentredString(sx+rad*0.4, sy+rad+18, "PRODUCTS")
-        draw_diag_text(sx+rad*0.4, sy+rad+5, rad*0.7, st.session_state.canvas["products_services"], WHITE)
+        draw_diag_text(sx+rad*0.4, sy+rad+5, rad*0.7, st.session_state.canvas["products_services"], TEXT_MAIN)
         
         c.drawCentredString(sx+rad*1.4, sy+rad*1.5+8, "GAIN CREATORS")
-        draw_diag_text(sx+rad*1.4, sy+rad*1.5-5, rad*1.1, st.session_state.canvas["gain_creators"], WHITE)
+        draw_diag_text(sx+rad*1.4, sy+rad*1.5-5, rad*1.1, st.session_state.canvas["gain_creators"], TEXT_MAIN)
         
         c.drawCentredString(sx+rad*1.4, sy+rad*0.5+8, "PAIN RELIEVERS")
-        draw_diag_text(sx+rad*1.4, sy+rad*0.5-5, rad*1.1, st.session_state.canvas["pain_relievers"], WHITE)
+        draw_diag_text(sx+rad*1.4, sy+rad*0.5-5, rad*1.1, st.session_state.canvas["pain_relievers"], TEXT_MAIN)
 
         # --- CUSTOMER PROFILE (Circle) ---
         cx = mx + 15*mm + rad if orientation=="Landscape" else mx
         cy = my if orientation=="Landscape" else my - rad*2 - 15*mm
-        c.setStrokeColor(TEAL); c.setLineWidth(2); c.setFillColor(colors.HexColor("#101f1d"))
+        c.setStrokeColor(TEAL); c.setLineWidth(2)
+        c.setFillColor(colors.HexColor("#101f1d") if pdf_theme=="Dark" else colors.HexColor("#f0fffb"))
         c.circle(cx, cy, rad, fill=1, stroke=1)
         # Standard VPC Divisions
         c.setLineWidth(1); c.setStrokeColor(colors.HexColor("#1a4a45"))
@@ -980,16 +1038,16 @@ def to_pdf(name, size="A4", orientation="Landscape"):
         # Words inside Circle
         c.setFont("Helvetica-Bold", 7); c.setFillColor(TEAL)
         c.drawCentredString(cx+rad*0.6, cy+18, "JOBS")
-        draw_diag_text(cx+rad*0.6, cy+5, rad*0.7, st.session_state.canvas["customer_jobs"], WHITE)
+        draw_diag_text(cx+rad*0.6, cy+5, rad*0.7, st.session_state.canvas["customer_jobs"], TEXT_MAIN)
         
         c.drawCentredString(cx-rad*0.4, cy+rad*0.5+8, "GAINS")
-        draw_diag_text(cx-rad*0.4, cy+rad*0.5-5, rad*0.7, st.session_state.canvas["customer_gains"], WHITE)
+        draw_diag_text(cx-rad*0.4, cy+rad*0.5-5, rad*0.7, st.session_state.canvas["customer_gains"], TEXT_MAIN)
         
         c.drawCentredString(cx-rad*0.4, cy-rad*0.5+8, "PAINS")
-        draw_diag_text(cx-rad*0.4, cy-rad*0.5-5, rad*0.7, st.session_state.canvas["customer_pains"], WHITE)
+        draw_diag_text(cx-rad*0.4, cy-rad*0.5-5, rad*0.7, st.session_state.canvas["customer_pains"], TEXT_MAIN)
         
         # Connection Arrow
-        c.setStrokeColor(colors.HexColor("#55557a")); c.setLineWidth(3)
+        c.setStrokeColor(FOOTER_TEXT); c.setLineWidth(3)
         if orientation=="Landscape":
             c.line(mx-10*mm, my, mx+10*mm, my)
         else:
@@ -997,6 +1055,10 @@ def to_pdf(name, size="A4", orientation="Landscape"):
             ay = (sy + cy + rad) / 2
             c.line(mx, ay-6*mm, mx, ay+6*mm)
 
+        # Footer
+        c.setFillColor(FOOTER_BG); c.rect(0, 0, pw, 6*mm, fill=1, stroke=0)
+        c.setFillColor(FOOTER_TEXT); c.setFont("Helvetica", 6)
+        c.drawCentredString(pw/2, 2.5*mm, f"Canvas Studio Pro  ·  Strategy Toolkit  ·  {display_name}")
         c.showPage()
 
         # ===== PAGE 4: SWOT ANALYSIS =====
@@ -1016,8 +1078,8 @@ def to_pdf(name, size="A4", orientation="Landscape"):
         draw_cell(ox+sq, oy, sq-2, sq-2, "swot_t", st.session_state.canvas["swot_t"])
 
         # Footer
-        c.setFillColor(colors.HexColor("#0d1520")); c.rect(0, 0, pw, 6*mm, fill=1, stroke=0)
-        c.setFillColor(colors.HexColor("#55557a")); c.setFont("Helvetica", 6)
+        c.setFillColor(FOOTER_BG); c.rect(0, 0, pw, 6*mm, fill=1, stroke=0)
+        c.setFillColor(FOOTER_TEXT); c.setFont("Helvetica", 6)
         c.drawCentredString(pw/2, 2.5*mm, f"Canvas Studio Pro  ·  Strategy Toolkit  ·  {display_name}")
         c.showPage(); c.save()
         return buf.getvalue()
@@ -1038,11 +1100,12 @@ def load_upload(f):
             st.session_state.file_name = n
             st.session_state.saved_files[n] = dict(st.session_state.canvas)
             st.session_state.active_file = n
+            update_widgets()
             return True, f"Loaded **{n}**"
         elif f.name.endswith(".csv"):
             lmap = {v: k for k, v in PLAIN.items()}
             nc = {k: "" for k in ALL}
-            for row in csv.DictReader(io.StringIO(data.decode())):
+            for row in csv.DictReader(io.StringIO(data.decode("utf-8-sig", errors="replace"))):
                 fk = lmap.get(row.get("Field", "").strip())
                 if fk: nc[fk] = row.get("Content", "")
             snapshot(); st.session_state.canvas = nc
@@ -1050,14 +1113,15 @@ def load_upload(f):
             st.session_state.file_name = n
             st.session_state.saved_files[n] = dict(nc)
             st.session_state.active_file = n
+            update_widgets()
             return True, f"Loaded **{n}**"
         return False, "Unsupported format"
     except Exception as e:
         return False, str(e)
 
 # ── COMPUTED VALUES ───────────────────────────────────────────
-filled = sum(1 for f in ALL if st.session_state.canvas.get(f, "").strip())
-total  = len(ALL)
+filled = sum(1 for f in MAIN if st.session_state.canvas.get(f, "").strip())
+total  = len(MAIN)
 pct    = int(filled / total * 100)
 bmc_f  = sum(1 for f in BMC if st.session_state.canvas.get(f, "").strip())
 vpc_f  = sum(1 for f in VPC if st.session_state.canvas.get(f, "").strip())
@@ -1065,27 +1129,16 @@ swot_f = sum(1 for f in SWOT if st.session_state.canvas.get(f, "").strip())
 
 # ── READINESS SCORE ───────────────────────────────────────────
 def compute_readiness():
+    # Only BMC, VPC, and SWOT count toward readiness now
     score = 0
-    # Core canvas filled (max 40)
-    core_fields = ["customer_segments", "value_propositions", "revenue_streams", "cost_structure",
-                   "customer_jobs", "customer_pains", "customer_gains", "products_services"]
-    score += sum(5 for f in core_fields if st.session_state.canvas.get(f, "").strip())
-    # Supporting fields (max 20)
-    sup_fields = ["channels", "customer_relationships", "key_activities", "key_resources"]
-    score += sum(5 for f in sup_fields if st.session_state.canvas.get(f, "").strip())
-    # SWOT (max 20)
-    for f in SWOT:
-        if st.session_state.canvas.get(f, "").strip():
-            score += 5
-    # Financial data entered
-    if st.session_state.canvas.get("rev_price", "") or st.session_state.canvas.get("rev_volume", ""):
-        score += 10
-    # Founder info
-    if st.session_state.get("founder_name", "").strip():
-        score += 5
-    if st.session_state.get("company_name", "").strip():
-        score += 5
-    return min(100, score)
+    # BMC (max 45) - 9 fields * 5
+    score += sum(5 for f in BMC if st.session_state.canvas.get(f, "").strip())
+    # VPC (max 30) - 6 fields * 5
+    score += sum(5 for f in VPC if st.session_state.canvas.get(f, "").strip())
+    # SWOT (max 25) - 4 fields * 6.25
+    score += sum(6.25 for f in SWOT if st.session_state.canvas.get(f, "").strip())
+    
+    return min(100, int(score))
 
 readiness = compute_readiness()
 
@@ -1294,6 +1347,14 @@ def vpc_svg(size=300):
     return f"""<div style="display:flex;justify-content:center;width:100%"><svg viewBox="0 0 760 340" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:760px;height:auto"><defs><filter id="glow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="4" result="blur"/><feComposite in="SourceGraphic" in2="blur" operator="over"/></filter><linearGradient id="g_v" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="{a2}" stop-opacity="0.15"/><stop offset="100%" stop-color="{a2}" stop-opacity="0.05"/></linearGradient><linearGradient id="g_c" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="{a1}" stop-opacity="0.15"/><stop offset="100%" stop-color="{a1}" stop-opacity="0.05"/></linearGradient></defs><g transform="translate(40,40)"><rect x="0" y="0" width="260" height="260" fill="url(#g_v)" stroke="{T['border']}" stroke-width="1.5" rx="8"/><path d="M 0 0 L 130 130 L 0 260 Z" fill="{c_ps}" opacity="0.85"/><path d="M 0 0 L 260 0 L 130 130 Z" fill="{c_gc}" opacity="0.85"/><path d="M 0 260 L 130 130 L 260 260 Z" fill="{c_pr}" opacity="0.85"/><line x1="0" y1="0" x2="260" y2="260" stroke="{T['border']}" stroke-width="1" opacity="0.4"/><line x1="0" y1="260" x2="260" y2="0" stroke="{T['border']}" stroke-width="1" opacity="0.4"/><text x="32" y="130" font-family="Outfit,sans-serif" font-size="11" font-weight="800" fill="white" transform="rotate(-90 32 130)" text-anchor="middle">PRODUCTS</text><text x="130" y="32" font-family="Outfit,sans-serif" font-size="11" font-weight="800" fill="white" text-anchor="middle">GAIN CREATORS</text><text x="130" y="238" font-family="Outfit,sans-serif" font-size="11" font-weight="800" fill="white" text-anchor="middle">PAIN RELIEVERS</text><rect x="110" y="110" width="40" height="40" rx="8" fill="{T['bg1']}" stroke="{a2}" stroke-width="2.5" filter="url(#glow)"/><text x="130" y="137" font-family="Outfit,sans-serif" font-size="20" font-weight="900" fill="{a2}" text-anchor="middle">V</text></g><g transform="translate(420,40)"><circle cx="170" cy="130" r="130" fill="url(#g_c)" stroke="{T['border']}" stroke-width="1.5"/><path d="M 170 0 L 300 130 L 170 260 Z" fill="{c_cj}" opacity="0.8"/><path d="M 170 0 L 170 260 L 40 130 Z" fill="{c_cg}" opacity="0.8"/><path d="M 40 130 L 170 260 L 300 130 Z" fill="{c_cp}" opacity="0.8"/><line x1="40" y1="130" x2="300" y2="130" stroke="{T['border']}" stroke-width="1" opacity="0.4"/><line x1="170" y1="0" x2="170" y2="260" stroke="{T['border']}" stroke-width="1" opacity="0.4"/><text x="240" y="130" font-family="Outfit,sans-serif" font-size="11" font-weight="800" fill="white" text-anchor="middle">JOBS</text><text x="120" y="75" font-family="Outfit,sans-serif" font-size="11" font-weight="800" fill="white" text-anchor="middle">GAINS</text><text x="120" y="185" font-family="Outfit,sans-serif" font-size="11" font-weight="800" fill="white" text-anchor="middle">PAINS</text><circle cx="170" cy="130" r="18" fill="{T['bg1']}" stroke="{a1}" stroke-width="2.5" filter="url(#glow)"/><text x="170" y="136" font-family="Outfit,sans-serif" font-size="16" font-weight="900" fill="{a1}" text-anchor="middle">C</text></g><text x="380" y="175" font-family="Outfit,sans-serif" font-size="28" fill="{T['text3']}" text-anchor="middle">⇄</text></svg></div>"""
 
 # ── FIELD RENDERER ────────────────────────────────────────────
+def sync_field(key):
+    if "canvas" not in st.session_state:
+        return
+    val = st.session_state.get(f"ta_{key}", "")
+    if val != st.session_state.canvas.get(key):
+        snapshot()
+        st.session_state.canvas[key] = val
+
 def field(key, height=130):
     color  = COLORS.get(key, "teal")
     accent = ACCENT_MAP.get(color, "var(--a1)")
@@ -1301,21 +1362,20 @@ def field(key, height=130):
         f'<div class="ccard {color}"><div class="ccard-title" style="color:{accent};">{LABELS[key]}</div></div>',
         unsafe_allow_html=True
     )
-    val = st.text_area(
-        LABELS[key], value=st.session_state.canvas[key],
+    st.text_area(
+        LABELS[key],
         height=height, placeholder=HINTS[key],
-        key=f"ta_{key}", label_visibility="collapsed"
+        key=f"ta_{key}", label_visibility="collapsed",
+        on_change=sync_field, args=(key,)
     )
-    if val != st.session_state.canvas[key]:
-        snapshot()
-        st.session_state.canvas[key] = val
 
 def scard(key):
     color  = COLORS.get(key, "teal")
     accent = ACCENT_MAP.get(color, "var(--a1)")
     val    = st.session_state.canvas.get(key, "")
+    safe_val = html_mod.escape(val)
     content_html = (
-        f'<div class="scard-val">{val}</div>' if val.strip()
+        f'<div class="scard-val">{safe_val}</div>' if val.strip()
         else '<div class="scard-empty">Not filled yet — add your thoughts</div>'
     )
     st.markdown(f"""
@@ -1345,17 +1405,17 @@ with st.sidebar:
     st.markdown('<div style="font-size:0.70rem;color:var(--text3);letter-spacing:.12em;text-transform:uppercase;margin-bottom:10px;font-weight:700;">👤 Founder Profile</div>', unsafe_allow_html=True)
 
     founder = st.text_input("Founder Name", value=st.session_state.founder_name, placeholder="Your name", label_visibility="collapsed", key="founder_input")
-    if founder: st.session_state.founder_name = founder
+    st.session_state.founder_name = founder
 
     company = st.text_input("Company Name", value=st.session_state.company_name, placeholder="Company name", label_visibility="collapsed", key="company_input")
-    if company: st.session_state.company_name = company
+    st.session_state.company_name = company
 
     st.markdown('<div style="border-top:1px solid var(--border);margin:16px 0 12px;"></div>', unsafe_allow_html=True)
 
     # Canvas name
     st.markdown('<div style="font-size:0.70rem;color:var(--text3);letter-spacing:.12em;text-transform:uppercase;margin-bottom:8px;font-weight:700;">📝 Canvas Identity</div>', unsafe_allow_html=True)
     fname = st.text_input("Canvas Name", value=st.session_state.file_name, placeholder="e.g. startup_alpha_v1")
-    if fname: st.session_state.file_name = fname.strip().replace(" ", "_")
+    st.session_state.file_name = (fname.strip().replace(" ", "_") or "my_startup_canvas")
 
     c1, c2 = st.columns(2)
     with c1:
@@ -1382,14 +1442,18 @@ with st.sidebar:
     st.download_button("📊 CSV",  to_csv(nm),  f"{nm}.csv",  "text/csv",         use_container_width=True)
 
     st.markdown('<div style="font-size:0.70rem;color:var(--text3);letter-spacing:.12em;text-transform:uppercase;margin:14px 0 8px;font-weight:700;">🖨️ PDF Export</div>', unsafe_allow_html=True)
-    pdf_size = st.selectbox("Paper Size", ["A4","A3","A5","Letter"], label_visibility="collapsed")
-    pdf_orient = st.radio("Orientation", ["Landscape", "Portrait"], horizontal=True, label_visibility="collapsed")
-    if st.button(f"📄 Generate PDF", use_container_width=True):
-        pdf = to_pdf(nm, pdf_size, pdf_orient)
-        if pdf:
-            st.download_button(f"⬇️ Save {pdf_size} {pdf_orient} PDF", pdf, f"{nm}_{pdf_size}_{pdf_orient}.pdf", "application/pdf", use_container_width=True, key="pdl")
-        else:
-            st.error("Run: pip install reportlab")
+    pdf_size = st.selectbox("Paper Size", ["A4","A3","A5","Letter"], label_visibility="collapsed", key="pdf_size_sel")
+    pdf_orient = st.radio("Orientation", ["Landscape", "Portrait"], horizontal=True, label_visibility="collapsed", key="pdf_orient_sel")
+    pdf_theme_sel = st.radio("PDF Theme", ["Dark", "Light"], horizontal=True, label_visibility="collapsed", key="pdf_theme_sel")
+    if st.button(f"📄 Generate PDF", use_container_width=True, key="gen_pdf_btn"):
+        with st.status("🏗️ Generating Premium PDF...", expanded=False) as status:
+            pdf = to_pdf(st.session_state.file_name, pdf_size, pdf_orient, pdf_theme_sel)
+            if pdf:
+                status.update(label="✅ PDF Ready!", state="complete", expanded=False)
+                st.download_button(f"⬇️ Save {pdf_size} {pdf_orient} PDF", pdf, f"{st.session_state.file_name}_{pdf_size}_{pdf_orient}.pdf", "application/pdf", use_container_width=True, key="pdl")
+            else:
+                status.update(label="❌ Generation Failed", state="error")
+                st.error("Please ensure 'reportlab' is installed.")
 
     st.markdown('<div style="border-top:1px solid var(--border);margin:16px 0 12px;"></div>', unsafe_allow_html=True)
 
@@ -1397,8 +1461,14 @@ with st.sidebar:
     st.markdown('<div style="font-size:0.70rem;color:var(--text3);letter-spacing:.12em;text-transform:uppercase;margin-bottom:8px;font-weight:700;">⬆️ Import</div>', unsafe_allow_html=True)
     up = st.file_uploader("Upload JSON or CSV", type=["json","csv"], label_visibility="collapsed")
     if up:
-        ok, msg = load_upload(up)
-        (st.success if ok else st.error)(msg)
+        fid = f"{up.name}_{up.size}"
+        if st.session_state.get("last_up_id") != fid:
+            ok, msg = load_upload(up)
+            st.session_state.last_up_id = fid
+            if ok:
+                st.success(msg)
+                st.rerun()
+            else: st.error(msg)
 
     st.markdown('<div style="border-top:1px solid var(--border);margin:16px 0 12px;"></div>', unsafe_allow_html=True)
 
@@ -1457,12 +1527,12 @@ if st.session_state.show_tips:
     </div>""", unsafe_allow_html=True)
 
 # ── TABS ──────────────────────────────────────────────────────
-t1, t2, t3, t4, t5, t6 = st.tabs([
+t1, t2, t5, t3, t4, t6 = st.tabs([
     "📋 Business Model Canvas",
     "🔵 Value Proposition Canvas",
+    "📈 SWOT & Revenue",
     "🔀 Full Overview",
     "✨ Insights & Visuals",
-    "📈 SWOT & Revenue",
     "📊 Analytics Dashboard"
 ])
 
@@ -1724,8 +1794,10 @@ with t4:
     with notes_col1:
         st.text_area(
             "Notes", height=130,
+            value=st.session_state.canvas.get("canvas_notes", ""),
             placeholder="e.g. Hypothesis: Customers will pay ₹999/mo · Risk: Low brand awareness · Next: 10 customer discovery calls",
-            key="canvas_notes", label_visibility="collapsed"
+            key="ta_canvas_notes", label_visibility="collapsed",
+            on_change=sync_field, args=("canvas_notes",)
         )
     with notes_col2:
         # Risk assessment mini-card
@@ -1761,11 +1833,17 @@ with t5:
 
     fe1, fe2, fe3 = st.columns([1, 1, 1.5])
     with fe1:
-        p = st.number_input("Avg Price (₹)", value=1000, step=100)
-        v = st.number_input("Monthly Volume", value=100, step=10)
+        p = st.number_input("Avg Price (₹)", step=100, key="ta_rev_price", on_change=sync_field, args=("rev_price",))
+        v = st.number_input("Monthly Volume", step=10, key="ta_rev_volume", on_change=sync_field, args=("rev_volume",))
     with fe2:
-        fc = st.number_input("Fixed Costs/mo (₹)", value=50000, step=5000)
-        vc_unit = st.number_input("Variable Cost/unit (₹)", value=200, step=50)
+        fc = st.number_input("Fixed Costs/mo (₹)", step=5000, key="ta_rev_fixed_cost", on_change=sync_field, args=("rev_fixed_cost",))
+        vc_unit = st.number_input("Variable Cost/unit (₹)", step=50, key="ta_rev_var_cost", on_change=sync_field, args=("rev_var_cost",))
+
+    # Update local vars for the charts below
+    st.session_state.canvas["rev_price"] = str(p)
+    st.session_state.canvas["rev_volume"] = str(v)
+    st.session_state.canvas["rev_fixed_cost"] = str(fc)
+    st.session_state.canvas["rev_var_cost"] = str(vc_unit)
 
     rev = p * v
     cos = fc + (vc_unit * v)
@@ -1792,7 +1870,10 @@ with t5:
         st.markdown('</div>', unsafe_allow_html=True)
 
     if pro < 0:
-        be = int(fc / (p - vc_unit)) if p > vc_unit else "∞"
+        try:
+            be = int(fc / (p - vc_unit)) if p > vc_unit else "∞"
+        except (ZeroDivisionError, OverflowError):
+            be = "∞"
         st.warning(f"⚠️ You are currently losing money. Break-even requires **{be}** units/mo.")
     elif pro > 0:
         st.success("✅ Profitable model! Focus on scaling volume or reducing unit costs.")
